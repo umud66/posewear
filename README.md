@@ -94,6 +94,20 @@ python3 -m http.server 8787 -d dist
 | `POSEWEAR_RAW` | 原始素材目录 | `assets-raw` |
 | `POSEWEAR_SITE` | 站点地址，用于 sitemap 和分享链接 | `https://posewear.pages.dev` |
 
+## Fork：只使用 Cloudflare 免费 Workers AI
+
+本 Fork 保留原版图库、深度姿势、服装、动画服装、人像、试穿/无照片生成、多姿势、批量生成、对比、历史、收藏、PWA 等功能；生成端固定为 `@cf/black-forest-labs/flux-2-klein-4b`，不要求 OpenAI、Gemini、豆包或中转服务的 API Key。
+
+1. 按上方“快速开始”运行 `python3 scripts/fetch-assets.py`，下载原版所需的素材。
+2. 运行 `pip install pillow && npm install`，然后设置 `POSEWEAR_SITE=https://你的项目.pages.dev` 并运行 `python3 build.py`。
+3. 在 Cloudflare **Workers & Pages → 你的 Pages 项目 → Settings → Bindings → Add → Workers AI** 中，创建名称为 **`AI`** 的 Binding；生产环境与预览环境分别配置。
+4. 从本仓库根目录运行 `npx wrangler pages deploy dist --project-name 你的项目`。Binding 添加或变更后请重新部署。
+5. 在网页“试穿 → 设置 → 测试连接”检查 Binding；正式生成一次以验证模型权限及输出。
+
+本地若需要调试 Pages Function，请用 `npx wrangler pages dev dist --ai AI`；普通 `python -m http.server` 只能查看静态图库，无法运行 AI 接口。
+
+**模型限制：** FLUX.2 Klein 4B 单次最多接收 4 张参考图，单张需小于 512×512。本站自动缩放；超出 4 张时拼接剩余参考图供模型参考。多选/批量功能仍保留，但复杂动作、服装细节与人脸一致性不能保证与原版第三方模型一致。Workers Free 每天共享 10,000 Neurons，超限后会报错，不会继续生成。公开网站务必对 `/api/generate` 配置 Cloudflare WAF 速率限制，避免被别人耗尽免费额度。
+
 ## 部署
 
 仓库不带素材，所以需要先在本地构建，再上传 `dist/` 到 Cloudflare Pages：
