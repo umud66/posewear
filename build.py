@@ -3,8 +3,21 @@ from costume_text import gen2
 import hashlib,re,html as H
 from concurrent.futures import ProcessPoolExecutor
 # Cloudflare Git 自动构建时使用元数据+原站按需图片，不批量下载源图片。
-REMOTE=os.environ.get('POSEWEAR_REMOTE_ASSETS','0')=='1'
-if not REMOTE:
+# Cloudflare Pages builds need no Pillow and never download whole image galleries.
+# CF_PAGES_BRANCH is provided by the Cloudflare Pages Git build environment.
+REMOTE=os.environ.get('POSEWEAR_REMOTE_ASSETS','1' if os.environ.get('CF_PAGES_BRANCH') else '0')=='1'
+if REMOTE:
+    import sys
+    required=[
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/pose/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/costume/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/anime/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/portrait/images.js',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/portrait/ranking.js',
+    ]
+    if any(not os.path.isfile(path) for path in required):
+        subprocess.check_call([sys.executable,'scripts/fetch-assets.py','--meta-only'])
+else:
     from PIL import Image
 # 素材目录：默认 ./assets-raw，可用环境变量 POSEWEAR_RAW 指定（见 scripts/fetch-assets.py）
 R=os.environ.get('POSEWEAR_RAW','assets-raw'); D='dist'
