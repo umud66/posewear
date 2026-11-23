@@ -107,7 +107,7 @@ python3 -m http.server 8787 -d dist
 | Build command | `bash scripts/cloudflare-build.sh` |
 | Build output directory | `dist` |
 | Root directory | `/`（仓库根目录） |
-| Python version | 推荐使用 Cloudflare v3 默认的 Python 3 环境；若需覆盖，使用 `PYTHON_VERSION=3.11` |
+| Python version | 使用 Cloudflare Pages v3 默认 Python 3.13；若需要指定版本，设置 `PYTHON_VERSION=3.13.3` |
 
 **必须**在 Cloudflare Pages 项目 Settings → Bindings → Workers AI 创建变量名为 `AI` 的 Binding；添加后重新部署。Pages 免费版限制单次构建最多 20 分钟、单站最多 20,000 个静态文件，所以默认不采用原版的全量素材构建方式。
 
