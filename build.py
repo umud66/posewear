@@ -22,10 +22,15 @@ else:
 # 素材目录：默认 ./assets-raw，可用环境变量 POSEWEAR_RAW 指定（见 scripts/fetch-assets.py）
 R=os.environ.get('POSEWEAR_RAW','assets-raw'); D='dist'
 def remote(lib,path):
-    # 路径仍归属于原站；/media/ 路由默认重定向至作者的图片地址。
-    if not isinstance(path,str) or not path or path.startswith(('http:','https:')):
+    # 云构建只引用上游原图链接，不通过本站 /media 路由展示图片。
+    # 生成/下载时的按需跨域读取交由 /api/asset 处理。
+    roots={'pose':'https://ai-pose-gallery.pages.dev/',
+           'costume':'https://ai-costume-gallery.pages.dev/',
+           'anime':'https://ai-costume-anime-gallery.pages.dev/',
+           'portrait':'https://ai-portrait-gallery.pages.dev/'}
+    if lib not in roots or not isinstance(path,str) or not path or path.startswith(('http:','https:','/')):
         raise ValueError('invalid remote source path: %r'%path)
-    return 'media/'+lib+'/'+path.lstrip('/')
+    return roots[lib]+path
 
 LINE={'全身1人・セクシー系':('全身·性感','full body, solo, sexy'),'全身1人・標準系':('全身·标准','full body, solo'),'上半身1人':('上半身','upper body, solo'),'2人絡み':('双人互动','two people, couple')}
 CAT={'寝そべり':'躺卧','セクシー・露骨寄り系':'性感·大胆','立ち':'站姿','座り':'坐姿','かわいい系':'可爱','胸寄せ・谷間強調系':'挤胸·乳沟','膝立ち・四つん這い':'跪立·趴姿','特殊':'特殊','正常位':'正面位','膝立ち':'跪立','横座り・女の子座り':'侧坐·鸭子坐','後背位':'后入位','背面座位':'背面坐位','しゃがみ':'蹲姿','前かがみ':'前倾','顔寄せ系':'贴脸','騎乗位':'骑乘位','立位':'立位','立位密着':'立位贴身','のけぞり・反り':'后仰','ひねり':'扭身','側位':'侧位','座位':'坐位','対面座位':'对面坐位','座位密着':'坐位贴身','密着':'贴身'}
@@ -131,4 +136,19 @@ _dc=depthpack.catalog(); DJ=J(_dc['payload']); DEPTH_ORIGINS=_dc['origins']
 for src,rel in _dc['copies']:
   dest=f'{D}/{rel}'; os.makedirs(os.path.dirname(dest),exist_ok=True); shutil.copyfile(src,dest)
 exec(open('post.py').read())
+if REMOTE:
+  # 静态详情页和 sitemap 的上游图像可能被模板加上本域名或前导 /
+  # （原版模板面向自托管图片），统一恢复完整上游 URL。
+  from pathlib import Path
+  for f in Path(D).rglob('*'):
+    if f.suffix not in ('.html','.xml') or not f.is_file():
+      continue
+    txt=f.read_text(encoding='utf-8')
+    for root in ('https://ai-pose-gallery.pages.dev/','https://ai-costume-gallery.pages.dev/',
+                 'https://ai-costume-anime-gallery.pages.dev/','https://ai-portrait-gallery.pages.dev/'):
+      txt=txt.replace('="/'+root,'="'+root)
+      txt=txt.replace(SITE+'/'+root,root)
+    if f.suffix=='.html' and '<head>' in txt and 'name="referrer"' not in txt:
+      txt=txt.replace('<head>','<head><meta name="referrer" content="no-referrer">',1)
+    f.write_text(txt,encoding='utf-8')
 print(len(poses),len(cos),len(acs),len(_dc['payload']['items']))
