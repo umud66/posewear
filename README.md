@@ -15,7 +15,7 @@
 [![在线体验](https://img.shields.io/badge/demo-posewear.pages.dev-ff2442)](https://posewear.pages.dev)
 [![GitHub stars](https://img.shields.io/github/stars/atuizz/posewear?style=flat&color=black)](https://github.com/atuizz/posewear/stargazers)
 
-[原版演示（非本 Fork）](https://posewear.pages.dev) · [手机部署教程](#手机部署cloudflare-pages) · [模型配置](#2-cloudflare-workers-ai-模型) · [构建排错](#常见部署报错) · [功能](#功能) · [常见问题](#常见问题) · [上游英文说明](README.en.md)
+[原版演示（非本 Fork）](https://posewear.pages.dev) · [手机部署教程](#手机部署cloudflare-pages--workers) · [模型配置](#2-cloudflare-workers-ai-模型) · [构建排错](#常见部署报错) · [功能](#功能) · [常见问题](#常见问题) · [上游英文说明](README.en.md)
 
 <img src="docs/home.jpg" alt="首页截图" width="900">
 
@@ -70,9 +70,27 @@
 |:---:|:---:|:---:|
 | <img src="docs/studio.jpg" alt="试穿工作台" width="420"> | <img src="docs/dark.jpg" alt="深色模式" width="420"> | <img src="docs/mobile.jpg" alt="手机" width="180"> |
 
-## 手机部署（Cloudflare Pages）
+## 手机部署（Cloudflare Pages / Workers）
 
-> **当前适用平台：Cloudflare Pages（`*.pages.dev`），不是 Cloudflare Workers Builds（`*.workers.dev`）。** 当前仓库采用 `functions/api/generate.js`、`functions/media/[[path]].js` 等 **Pages Functions** 路由。直接将此仓库作为普通 Worker 部署，不能自动转换这些路由。整个流程可只用手机浏览器和 Cloudflare/GitHub 网页完成，不需要电脑、Termux、Python、Pillow 或本地 Wrangler。
+> **目前同时支持 Pages 与 Workers Builds 两种 Git 自动部署方式。** Pages 使用 `functions/api/*.js`；Workers Builds 使用 `worker/index.js` + `wrangler.worker.jsonc`，由 Worker 入口接管相同的 `/api/generate` 与 `/api/asset` 接口。两种方式都无需电脑、Termux、Python/Pillow 本地环境或第三方模型中转站。**如果 Cloudflare 设置页要求填写 Deploy command / Preview command，请使用下方「Workers Builds」设置**。
+
+### 0. 已有 Workers Builds 项目（出现过 `previews` 报错的用户）
+
+如果你当前使用的是 `*.workers.dev`、Cloudflare 控制台要求 **Build / Deploy / Preview** 三个命令，**无需重新创建 Pages 项目**，本 Fork 已新增原生 Workers 的入口和 Wrangler 配置。手机端打开 **Workers & Pages → 当前 Worker → Settings → Build**，配置：
+
+| Workers Builds 设置项 | 填写内容 |
+| --- | --- |
+| GitHub 仓库 | `umud66/posewear` |
+| 分支 | `feature/cloudflare-free-ai`（如要让此分支发布为正式站点，需设为 Production branch） |
+| Build command | `bash scripts/cloudflare-build.sh` |
+| Deploy command | `npx wrangler deploy --config wrangler.worker.jsonc` |
+| Preview command | `npx wrangler preview --config wrangler.worker.jsonc` |
+| Root directory | 仓库根目录 |
+| AI Binding | `AI`，由 Wrangler 的 `ai.binding` 配置，并在预览配置中同名声明 |
+
+仓库 `wrangler.worker.jsonc` 已包含 `"previews": {"ai":{"binding":"AI"}}`，可避免原先缺少 `previews` 配置的错误。Workers 项目会发布静态 `dist` 和一个 Worker 入口，`/api/asset`、`/api/generate` 不再返回静态 404。已有 Worker 的实际项目名若**不是 `posewear`**，请在命令中增加 `--name <实际的Worker名称>`，以免部署到新 Worker。
+
+**重要：** Workers Builds 的 Preview command 不能留空时，不应使用原先缺乏配置的 `npx wrangler preview`；请填写上面的完整命令。该配置与 Pages 部署互不冲突：Pages 仍按下方方式部署；Workers 使用独立文件 `wrangler.worker.jsonc`，不会触发 Pages 的 Wrangler 配置冲突。
 
 ### 1. 创建 Pages 项目并连接 GitHub
 
@@ -81,7 +99,7 @@
 **务必选 Pages，而非 Workers。** 可以通过创建项目时的界面判断：
 
 - **Pages**：要求选择 Production branch、Build command、Build output directory，**不要求填写 Deploy command 或 Preview command**。
-- **Workers Builds**：同时显示 Build command、Deploy command、Preview command。即使预览命令无法清空，也说明当前流程不适用于本 Fork 的 Pages Functions；**不要为了解决报错往此仓库随意添加 `previews` 块**。
+- **Workers Builds**：同时显示 Build command、Deploy command、Preview command。现在可以用上方 `wrangler.worker.jsonc` 部署，无需换成 Pages。
 
 当前改造代码在 `feature/cloudflare-free-ai` 分支，`main` 暂不包含该改造。创建 Pages 项目时使用以下设置：
 
@@ -115,6 +133,16 @@ AI
 @cf/black-forest-labs/flux-2-klein-4b
 ```
 
+### 图片加载与 404 排查
+
+图库能显示，并不代表生图时能够读取图片字节：**人像选择、服装/姿势参考、图片下载**会调用同源的 `/api/asset`。部署后可在手机浏览器直接打开：
+
+```text
+https://<你的站点域名>/api/asset
+```
+
+正常应返回包含 `"ok":true`、`"service":"asset"` 的 JSON。如果是 404 HTML，说明当前版本没有部署 API 入口，需要按部署平台核对相应 Worker/Pages 路由及命令。如果健康检查正常，但选原图时仍失败，页面现在会显示上游 HTTP 状态；还会自动回退尝试该素材的缩略图。如果是在上传本地照片后点击“生成”才报素材 404，请确认所选的服装与姿势来自哪个图库，因为本地上传图片本身不需要 `/api/asset`。
+
 ### 3. 验证部署
 
 部署成功后在手机打开：
@@ -135,17 +163,17 @@ https://<你的-pages-项目名>.pages.dev/api/generate
 
 | 报错 / 现象 | 可能原因 | 应采取的操作 |
 | --- | --- | --- |
-| `Your Wrangler configuration is missing a previews block` | 当前 Cloudflare 项目在执行 **Workers Builds** 的 `wrangler preview`，不是 Pages Git 自动部署 | 回到 Workers & Pages，创建**Pages → Connect to Git** 项目；本项目不要使用 `npx wrangler preview` |
-| **Preview command** 无法留空、页面不能保存 | 多半正在编辑 **Workers Builds** 设置 | **不必强行清空**，也不要填假命令；在 Pages 项目中配置 Git 构建 |
+| `Your Wrangler configuration is missing a previews block` | Workers Builds 运行默认 `wrangler preview`，但没有加载支持 previews 的配置 | 改用 `npx wrangler preview --config wrangler.worker.jsonc`；对应的 Deploy command 也要指定同一配置 |
+| **Preview command** 无法留空、页面不能保存 | 正在编辑 **Workers Builds** 设置 | 填写 `npx wrangler preview --config wrangler.worker.jsonc` |
 | `ModuleNotFoundError: No module named 'PIL'` | 跑了原版的全量构建，或使用了旧提交 | 确认分支 `feature/cloudflare-free-ai`，Build command 是 `bash scripts/cloudflare-build.sh`，并触发最新提交的新构建 |
-| `/api/generate` 返回 404 | 部署到 Workers 或 Pages Function 未部署成功 | 确认是 Pages 项目、包含 `functions/api/generate.js`，检查构建日志 |
+| `/api/generate` 或 `/api/asset` 返回 404 | 只部署了静态图库，未部署 API Handler | Pages 检查 `functions/api/`；Workers 检查是否使用 `wrangler.worker.jsonc` 和 `worker/index.js` |
 | `/api/generate` 返回 503 | Workers AI Binding `AI` 缺失或未生效 | 在当前 **Pages 项目和环境**绑定 `AI`，保存后重新部署 |
 | 网页能打开、图片无法加载 | 部署了旧版 `/media/` 路由构建或原站禁止热链 | 部署最新提交，清理网站缓存；新版本静态图库直接请求原站图像，不再依赖 `/media` Function |
 | 模型生成返回 429 | 免费额度耗尽、请求过快或接口限流 | 等待额度恢复、减少生成并发，并对公开接口设置限流 |
 
 #### 如果已经建了 Workers 项目
 
-不需要删除旧项目。为避免重写后端，**另外创建一个 Pages 项目**并连接同一个 GitHub 仓库；在新的 Pages 项目重新绑定 `AI`。Cloudflare Workers Builds 的 Preview command 与 Pages 的**分支预览部署**是两回事。Cloudflare 官方确实要求直接运行 `wrangler preview` 的 Worker 配置包含 `previews` 块，但给本仓库添加 `previews: {}` **不能**自动将 Pages Functions 改造成原生 Worker。若今后要沿用 `*.workers.dev` 和 Workers Builds，需要另行迁移静态资产配置、Worker 入口以及全部 API 路由，而不是只改一条命令。
+当前 Fork 已加入 `worker/index.js` 和 `wrangler.worker.jsonc`，可以继续使用原有 Workers Builds 项目，不必再创建 Pages。按照本章节开头的 Workers Builds 配置填写三条命令并部署最新提交即可。**注意分支和部署名**：Wrangler 文件中 Worker 名称默认为 `posewear`，如果你现有 Worker 名称不同，请在 Deploy / Preview 命令增加对应的 `--name` 参数。
 
 参考官方文档：[Pages Git 集成](https://developers.cloudflare.com/pages/get-started/git-integration/) · [Pages AI Binding](https://developers.cloudflare.com/pages/functions/bindings/) · [Workers Preview 配置](https://developers.cloudflare.com/workers/previews/configuration/) · [从 Pages 迁移到 Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/)
 
@@ -191,15 +219,17 @@ src/                    前端源码，无框架
   extras.js             批量操作、导入导出
   style.css             样式（含深色模式）
   sw.js / zip.js        离线缓存 / 打包下载
-functions/api/generate.js  Pages Function，Cloudflare Workers AI 图像生成
-functions/api/asset.js  Pages Function，仅用户主动操作时按需读取原图
+functions/api/generate.js  Pages Function/Worker 复用的 API，Cloudflare Workers AI 图像生成
+functions/api/asset.js  Pages Function/Worker 复用的 API，仅用户主动操作时按需读取原图
 functions/api/proxy.js  上游保留的原第三方服务商代理（本 Fork 生成不依赖）
 build.py / post.py      轻量模式生成图库元数据、详情页、sitemap、_headers
 costume_text.py         服装中英文描述
 words.txt, tr_*.txt     词表与中英文翻译
 depth/                  深度姿势素材包（只有文本，图片热链原站）
 depthpack.py            把素材包编成可替换的 depths.json
-scripts/cloudflare-build.sh   Cloudflare Pages Git 自动构建入口
+worker/index.js          Workers Builds 后端入口（静态 ASSETS + 两个 API）
+wrangler.worker.jsonc     Workers Build / Preview 配置（AI Binding、资产路由）
+scripts/cloudflare-build.sh   Cloudflare Git 自动构建入口（Pages/Workers 通用）
 scripts/fetch-assets.py  云端只读取元数据；全量模式可能下载素材
 tests/                  Playwright 测试
 docs/                   README 用图
@@ -216,7 +246,7 @@ docs/                   README 用图
 <details>
 <summary><b>为什么遇到 `previews`、`wrangler preview` 报错？</b></summary>
 
-你大概率创建成了 Workers Builds 项目。本仓库当前是 Pages Functions 项目，应新建 **Cloudflare Pages → Connect to Git**，并按[手机部署](#手机部署cloudflare-pages)填写构建设置。Workers Preview 的 `previews` 配置不能修复 Pages Functions 与 Workers 入口不兼容的问题。
+你使用了 Workers Builds，但没有加载其专用的 Wrangler 配置。可在同一个 Workers 项目按[手机部署](#手机部署cloudflare-pages--workers)填写构建、部署和预览命令；该 Fork 已新增 Worker 入口，不再依赖 Pages 自动识别 Functions。
 </details>
 
 <details>
