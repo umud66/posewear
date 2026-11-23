@@ -10,7 +10,7 @@ python3 build.py
 
 # Only dynamic AI/media endpoints invoke Pages Functions; static pages stay free to serve.
 cat > dist/_routes.json <<'EOF'
-{"version":1,"include":["/api/*","/media/*"],"exclude":[]}
+{"version":1,"include":["/api/*"],"exclude":[]}
 EOF
 
 echo "Cloudflare Pages build complete: $(find dist -type f | wc -l) static files."
