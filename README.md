@@ -25,7 +25,7 @@
 
 本 Fork 基于 [atuizz/posewear](https://github.com/atuizz/posewear) 改造。保留姿势、深度姿势、服装、动画服装、人像及试穿工作台、收藏、搜索、批量生成、下载、PWA 等界面功能。生成请求由本站 `/api/generate` 通过 Cloudflare Pages Functions 调用你自己 Cloudflare 账户的 Workers AI Binding `AI`。
 
-**无需 OpenAI、Gemini、豆包或自定义中转的 API Key。** 收藏与生成历史保存在访问者自己的浏览器；网站没有用户注册与业务数据库。图库图片依赖原素材站按需加载，部分图片加载、下载或生成参考能力受原站可用性和授权限制。
+**无需 OpenAI、Gemini、豆包或自定义中转的 API Key。** 收藏与生成历史保存在访问者自己的浏览器；网站没有用户注册与业务数据库。图库图片从原素材站直接展示，部分图片加载、下载或生成参考能力受原站可用性和授权限制。
 
 ## 功能
 
@@ -97,7 +97,7 @@
 | Preview command | **Pages Git 集成无此配置，不填** |
 | Python | 使用 Cloudflare 构建环境中的 Python 3；本分支已包含 `.python-version`，无需安装 Pillow |
 
-保存后，Cloudflare 自动拉取仓库、读取图库**文本元数据**、生成 `dist/` 并部署静态页面与 Pages Functions。脚本不会在 Cloudflare 中批量下载图库原图，也不会执行 `pip install pillow`。原图库图片通过 `/media/*` 路由按需请求原站。
+保存后，Cloudflare 自动拉取仓库、读取图库**文本元数据**、生成 `dist/` 并部署静态页面与 Pages Functions。脚本不会在 Cloudflare 中批量下载图库原图，也不会执行 `pip install pillow`。图库展示直接使用原作者的公开图片 URL，不依赖 `/media/*` 路由；用户主动选择 AI 参考图、复制或下载时才调用 `/api/asset`，不批量下载或长期保存图片。
 
 ### 2. Cloudflare Workers AI 模型
 
@@ -140,7 +140,7 @@ https://<你的-pages-项目名>.pages.dev/api/generate
 | `ModuleNotFoundError: No module named 'PIL'` | 跑了原版的全量构建，或使用了旧提交 | 确认分支 `feature/cloudflare-free-ai`，Build command 是 `bash scripts/cloudflare-build.sh`，并触发最新提交的新构建 |
 | `/api/generate` 返回 404 | 部署到 Workers 或 Pages Function 未部署成功 | 确认是 Pages 项目、包含 `functions/api/generate.js`，检查构建日志 |
 | `/api/generate` 返回 503 | Workers AI Binding `AI` 缺失或未生效 | 在当前 **Pages 项目和环境**绑定 `AI`，保存后重新部署 |
-| 网页能打开、图片无法加载 | 原素材站不可访问、禁止热链或路由失败 | 核对原站与浏览器网络情况；不要通过批量抓取绕过原站限制 |
+| 网页能打开、图片无法加载 | 部署了旧版 `/media/` 路由构建或原站禁止热链 | 部署最新提交，清理网站缓存；新版本静态图库直接请求原站图像，不再依赖 `/media` Function |
 | 模型生成返回 429 | 免费额度耗尽、请求过快或接口限流 | 等待额度恢复、减少生成并发，并对公开接口设置限流 |
 
 #### 如果已经建了 Workers 项目
@@ -192,7 +192,8 @@ src/                    前端源码，无框架
   style.css             样式（含深色模式）
   sw.js / zip.js        离线缓存 / 打包下载
 functions/api/generate.js  Pages Function，Cloudflare Workers AI 图像生成
-functions/media/[[path]].js Pages Function，按需读取原站图库图片
+functions/api/asset.js  Pages Function，仅用户主动操作时按需读取原图
+functions/media/[[path]].js Pages Function，旧版兼容路径（展示不再依赖）
 functions/api/proxy.js  上游保留的原第三方服务商代理（本 Fork 生成不依赖）
 build.py / post.py      轻量模式生成图库元数据、详情页、sitemap、_headers
 costume_text.py         服装中英文描述
@@ -270,7 +271,7 @@ Cloudflare Workers AI 对输入与生成结果可能进行安全审核。请使�
 | 内容 | 是否在本仓库 | 许可 |
 |---|---|---|
 | 代码、页面文案、构建脚本 | 是 | [MIT](LICENSE) |
-| 姿势、服装图片和原始数据 | 否；云端构建读取元数据，图片按需访问原站 | 归原作者 [@giaaibusi](https://x.com/giaaibusi) 所有（[AI Pose Gallery](https://ai-pose-gallery.pages.dev/) / [AI Costume Gallery](https://ai-costume-gallery.pages.dev/) / [AI Costume Anime Gallery](https://ai-costume-anime-gallery.pages.dev/)），原站未标明开放许可 |
+| 姿势、服装图片和原始数据 | 否；云端构建读取元数据，图片直接使用原站图片 URL | 归原作者 [@giaaibusi](https://x.com/giaaibusi) 所有（[AI Pose Gallery](https://ai-pose-gallery.pages.dev/) / [AI Costume Gallery](https://ai-costume-gallery.pages.dev/) / [AI Costume Anime Gallery](https://ai-costume-anime-gallery.pages.dev/)），原站未标明开放许可 |
 | 人像图片 | 否，按需访问原站 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans)，作者 [@agi_aibusi](https://x.com/agi_aibusi)（[AI Portrait Gallery](https://ai-portrait-gallery.pages.dev/)） |
 | 深度姿势图片 | 否，页面 `<img>` 热链 [AI Pose Depth Gallery](https://ai-pose-depth-gallery.pages.dev/) | 归作者 [ギア / @giaaibusi](https://x.com/giaaibusi)。本仓库只有文本元数据和译名 |
 | 深度姿势文本元数据 | 是，`depth/packs/` | 日文原文归原作者，中文译名为本站 |
