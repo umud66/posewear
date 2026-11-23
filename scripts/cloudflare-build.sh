@@ -2,11 +2,9 @@
 set -euo pipefail
 
 # Cloudflare Pages Git Integration build command: bash scripts/cloudflare-build.sh
-# Read source catalogs only. Never bulk-download or upload the original image files.
-python3 scripts/fetch-assets.py --meta-only
-
-# The original gallery pages are referenced on demand from their owners.
+# Metadata-only build: no Pillow, no bulk source image downloads.
 export POSEWEAR_REMOTE_ASSETS=1
+python3 scripts/fetch-assets.py --meta-only
 export POSEWEAR_SITE="${POSEWEAR_SITE:-${CF_PAGES_URL:-https://posewear.pages.dev}}"
 python3 build.py
 
