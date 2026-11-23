@@ -94,6 +94,25 @@ python3 -m http.server 8787 -d dist
 | `POSEWEAR_RAW` | 原始素材目录 | `assets-raw` |
 | `POSEWEAR_SITE` | 站点地址，用于 sitemap 和分享链接 | `https://posewear.pages.dev` |
 
+## 无电脑部署（Cloudflare Pages GitHub 自动构建）
+
+该 Fork 提供轻量模式，**不必在电脑上下载图库、执行 Python 或安装 Wrangler**。Cloudflare 连接 GitHub 后，自动下载**文本元数据**并构建网站。图库图片默认跳转各原作者站点按需加载；用户主动选择 AI 参考或下载时，才通过同域临时读取图片，不在构建时批量抓取或长期存储图片。
+
+请在手机浏览器打开 Cloudflare → Workers & Pages → Create → Pages → Import an existing Git repository。选 `umud66/posewear`，使用 `feature/cloudflare-free-ai` 分支，配置：
+
+| Cloudflare Pages 构建设置 | 值 |
+| --- | --- |
+| Framework preset | None |
+| Production branch | `feature/cloudflare-free-ai`（测试阶段；合并后改成 main） |
+| Build command | `bash scripts/cloudflare-build.sh` |
+| Build output directory | `dist` |
+| Root directory | `/`（仓库根目录） |
+| Python version | 推荐使用 Cloudflare v3 默认的 Python 3 环境；若需覆盖，使用 `PYTHON_VERSION=3.11` |
+
+**必须**在 Cloudflare Pages 项目 Settings → Bindings → Workers AI 创建变量名为 `AI` 的 Binding；添加后重新部署。Pages 免费版限制单次构建最多 20 分钟、单站最多 20,000 个静态文件，所以默认不采用原版的全量素材构建方式。
+
+> 原素材站声明禁止自动批量下载图片和重新分发。此模式保留直接从原站按需展示的依赖关系，并注明来源；若原作者限制热链、访问或许可，相关素材功能可能不可用。公开上线前应遵守原作者的使用条款、必要时取得授权。整个站点只使用 Cloudflare Workers AI 生成，不需要第三方生图 API Key。
+
 ## Fork：只使用 Cloudflare 免费 Workers AI
 
 本 Fork 保留原版图库、深度姿势、服装、动画服装、人像、试穿/无照片生成、多姿势、批量生成、对比、历史、收藏、PWA 等功能；生成端固定为 `@cf/black-forest-labs/flux-2-klein-4b`，不要求 OpenAI、Gemini、豆包或中转服务的 API Key。
