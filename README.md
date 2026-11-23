@@ -15,7 +15,7 @@
 [![在线体验](https://img.shields.io/badge/demo-posewear.pages.dev-ff2442)](https://posewear.pages.dev)
 [![GitHub stars](https://img.shields.io/github/stars/atuizz/posewear?style=flat&color=black)](https://github.com/atuizz/posewear/stargazers)
 
-[原版演示（非本 Fork）](https://posewear.pages.dev) · [手机部署教程](#手机部署cloudflare-pages) · [模型配置](#cloudflare-workers-ai-模型) · [构建排错](#常见部署报错) · [功能](#功能) · [常见问题](#常见问题) · [上游英文说明](README.en.md)
+[原版演示（非本 Fork）](https://posewear.pages.dev) · [手机部署教程](#手机部署cloudflare-pages) · [模型配置](#2-cloudflare-workers-ai-模型) · [构建排错](#常见部署报错) · [功能](#功能) · [常见问题](#常见问题) · [上游英文说明](README.en.md)
 
 <img src="docs/home.jpg" alt="首页截图" width="900">
 
