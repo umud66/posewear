@@ -193,7 +193,6 @@ src/                    前端源码，无框架
   sw.js / zip.js        离线缓存 / 打包下载
 functions/api/generate.js  Pages Function，Cloudflare Workers AI 图像生成
 functions/api/asset.js  Pages Function，仅用户主动操作时按需读取原图
-functions/media/[[path]].js Pages Function，旧版兼容路径（展示不再依赖）
 functions/api/proxy.js  上游保留的原第三方服务商代理（本 Fork 生成不依赖）
 build.py / post.py      轻量模式生成图库元数据、详情页、sitemap、_headers
 costume_text.py         服装中英文描述
