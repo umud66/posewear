@@ -8,14 +8,14 @@
 
 # 衣姿 PoseWear
 
-姿势、服装、人像参考图库，附中英文提示词；用自己的 API Key，在浏览器里直接 AI 试穿。
+姿势、服装、人像与深度姿势参考图库；保留原版工作台，使用 **Cloudflare Workers AI 免费额度**生成图片，无需第三方 API Key 或模型中转站。
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-black)](LICENSE)
 [![Cloudflare Pages](https://img.shields.io/badge/Cloudflare-Pages-f38020?logo=cloudflare&logoColor=white)](https://pages.cloudflare.com/)
 [![在线体验](https://img.shields.io/badge/demo-posewear.pages.dev-ff2442)](https://posewear.pages.dev)
 [![GitHub stars](https://img.shields.io/github/stars/atuizz/posewear?style=flat&color=black)](https://github.com/atuizz/posewear/stargazers)
 
-[在线体验](https://posewear.pages.dev) · [功能](#功能) · [快速开始](#快速开始) · [部署](#部署) · [常见问题](#常见问题) · [English](README.en.md)
+[原版演示（非本 Fork）](https://posewear.pages.dev) · [手机部署教程](#手机部署cloudflare-pages) · [模型配置](#cloudflare-workers-ai-模型) · [构建排错](#常见部署报错) · [功能](#功能) · [常见问题](#常见问题) · [上游英文说明](README.en.md)
 
 <img src="docs/home.jpg" alt="首页截图" width="900">
 
@@ -23,9 +23,9 @@
 
 ## 简介
 
-衣姿是一个纯静态的参考图站点：三套素材库都能直接浏览、搜索和复制提示词。挑中的服装和姿势可以带到试穿工作台，配上你自己的照片和模型 API，生成试穿图。
+本 Fork 基于 [atuizz/posewear](https://github.com/atuizz/posewear) 改造。保留姿势、深度姿势、服装、动画服装、人像及试穿工作台、收藏、搜索、批量生成、下载、PWA 等界面功能。生成请求由本站 `/api/generate` 通过 Cloudflare Pages Functions 调用你自己 Cloudflare 账户的 Workers AI Binding `AI`。
 
-不需要注册，也没有后端数据库。密钥、收藏和生成记录都只保存在你的浏览器里。
+**无需 OpenAI、Gemini、豆包或自定义中转的 API Key。** 收藏与生成历史保存在访问者自己的浏览器；网站没有用户注册与业务数据库。图库图片依赖原素材站按需加载，部分图片加载、下载或生成参考能力受原站可用性和授权限制。
 
 ## 功能
 
@@ -34,23 +34,22 @@
 | **素材库** | 姿势（多角度线稿）、深度姿势（热链原站深度图）、服装（按季节和类型分类）、动画服装（动画风穿搭）、人像（脸模参考，CC0）。每张图都有中文描述；深度姿势另附日文原名 |
 | **搜索与筛选** | 中英文关键词、分类、排序、随机一张；每个素材有独立详情页，方便分享 |
 | **试穿工作台** | 上传人物照，选服装和姿势，生成试穿图，或不用照片直接出图；一次可出多张，有前后对比、单张下载和打包下载 |
-| **多家服务商** | OpenAI、Gemini、豆包 Seedream、OpenAI 兼容的自定义中转，见下表 |
+| **免费模型** | 固定 Cloudflare Workers AI FLUX.2 Klein 4B；不使用第三方模型或中转站 |
 | **生成记录** | 保存在本机 IndexedDB，可查看、删除、清空，并可撤销 |
-| **清楚的报错** | 密钥无效、限流、超时、被安全审核拦截等情况会分别说明，并给出下一步可以怎么做 |
+| **清楚的报错** | 额度不足、限流、模型失败、超时、安全审核等会提示错误；生成前可检测 AI Binding 是否存在 |
 | **减少误拦截** | 默认开启。发送前把提示词改写成中性的电商试穿描述，不改变服装和姿势；关闭后按原样发送 |
 | **收藏 / 最近 / 组合** | 本机保存，可导入导出，删除可撤销；可以把多个素材拼成一段提示词 |
 | **18+ 开关** | 成人向分类默认隐藏，打开前需要确认年龄 |
 | **PWA 与深色模式** | 可安装，看过的内容离线也能打开；深色模式跟随系统，也可手动切换 |
 | **中文 / English 界面** | 默认中文，右上角切换 |
 
-### 支持的服务商
+### 支持的生成模型
 
-| 服务商 | 需要准备 | 默认模型 | 说明 |
-|---|---|---|---|
-| OpenAI | API Key（gpt-image 需已验证组织） | gpt-image-1 | 走 images/edits，多张参考图；安全审核最严 |
-| Gemini | Google AI Studio 的 API Key | gemini-2.5-flash-image | 即 Nano Banana |
-| 豆包 Seedream | 火山方舟 API Key | doubao-seedream-4-0-250828 | 国内直连，默认经本站代理以解决跨域 |
-| 自定义中转 | Base URL + Key + 模型名 | 自填 | OpenAI 兼容；可选 edits（multipart）或 generations（JSON） |
+| 服务商 | 当前模型 | 调用方式 | 是否需要外部 API Key |
+| --- | --- | --- | --- |
+| Cloudflare Workers AI | `@cf/black-forest-labs/flux-2-klein-4b` | Pages Function `/api/generate` → `env.AI.run()` | **不需要** |
+
+原版支持的 OpenAI、Gemini、豆包和自定义中转**不在本 Fork 的生成路径中使用**。原仓库保留的部分服务商兼容代码不代表本站会调用它们。图像生成能力取决于 Cloudflare 模型本身；保留工作台功能不等于能完全复现其他模型的试穿质量。
 
 ## 更新日志
 
@@ -71,80 +70,109 @@
 |:---:|:---:|:---:|
 | <img src="docs/studio.jpg" alt="试穿工作台" width="420"> | <img src="docs/dark.jpg" alt="深色模式" width="420"> | <img src="docs/mobile.jpg" alt="手机" width="180"> |
 
-## 快速开始
+## 手机部署（Cloudflare Pages）
 
-需要 Python 3.9+ 和 Pillow；测试与部署另外需要 Node.js 18+。
+> **当前适用平台：Cloudflare Pages（`*.pages.dev`），不是 Cloudflare Workers Builds（`*.workers.dev`）。** 当前仓库采用 `functions/api/generate.js`、`functions/media/[[path]].js` 等 **Pages Functions** 路由。直接将此仓库作为普通 Worker 部署，不能自动转换这些路由。整个流程可只用手机浏览器和 Cloudflare/GitHub 网页完成，不需要电脑、Termux、Python、Pillow 或本地 Wrangler。
 
-```bash
-git clone https://github.com/atuizz/posewear.git && cd posewear
-pip install pillow
+### 1. 创建 Pages 项目并连接 GitHub
 
-# 1. 从原作者的图库下载数据和图片到 ./assets-raw（数 GB，耗时较长）
-python3 scripts/fetch-assets.py            # 也可只下部分：pose costume portrait
+手机进入 [Cloudflare 控制台](https://dash.cloudflare.com/) → **Workers & Pages** → **Create application** → **Pages** → **Connect to Git / Import an existing Git repository**，选 `umud66/posewear`。
 
-# 2. 构建到 dist/
-python3 build.py
+**务必选 Pages，而非 Workers。** 可以通过创建项目时的界面判断：
 
-# 3. 本地预览 http://localhost:8787
-python3 -m http.server 8787 -d dist
-```
+- **Pages**：要求选择 Production branch、Build command、Build output directory，**不要求填写 Deploy command 或 Preview command**。
+- **Workers Builds**：同时显示 Build command、Deploy command、Preview command。即使预览命令无法清空，也说明当前流程不适用于本 Fork 的 Pages Functions；**不要为了解决报错往此仓库随意添加 `previews` 块**。
 
-| 环境变量 | 作用 | 默认 |
-|---|---|---|
-| `POSEWEAR_RAW` | 原始素材目录 | `assets-raw` |
-| `POSEWEAR_SITE` | 站点地址，用于 sitemap 和分享链接 | `https://posewear.pages.dev` |
+当前改造代码在 `feature/cloudflare-free-ai` 分支，`main` 暂不包含该改造。创建 Pages 项目时使用以下设置：
 
-## 无电脑部署（Cloudflare Pages GitHub 自动构建）
-
-该 Fork 提供轻量模式，**不必在电脑上下载图库、执行 Python 或安装 Wrangler**。Cloudflare 连接 GitHub 后，自动下载**文本元数据**并构建网站。图库图片默认跳转各原作者站点按需加载；用户主动选择 AI 参考或下载时，才通过同域临时读取图片，不在构建时批量抓取或长期存储图片。
-
-请在手机浏览器打开 Cloudflare → Workers & Pages → Create → Pages → Import an existing Git repository。选 `umud66/posewear`，使用 `feature/cloudflare-free-ai` 分支，配置：
-
-| Cloudflare Pages 构建设置 | 值 |
+| Pages 配置项 | 填写内容 |
 | --- | --- |
-| Framework preset | None |
-| Production branch | `feature/cloudflare-free-ai`（测试阶段；合并后改成 main） |
+| GitHub 仓库 | `umud66/posewear` |
+| Production branch | `feature/cloudflare-free-ai` |
+| Framework preset | `None` |
 | Build command | `bash scripts/cloudflare-build.sh` |
 | Build output directory | `dist` |
-| Root directory | `/`（仓库根目录） |
-| Python version | 使用 Cloudflare Pages v3 默认 Python 3.13；若需要指定版本，设置 `PYTHON_VERSION=3.13.3` |
+| Root directory | 仓库根目录（默认，通常留空或 `/`） |
+| Deploy command | **Pages Git 集成无此配置，不填** |
+| Preview command | **Pages Git 集成无此配置，不填** |
+| Python | 使用 Cloudflare 构建环境中的 Python 3；本分支已包含 `.python-version`，无需安装 Pillow |
 
-**必须**在 Cloudflare Pages 项目 Settings → Bindings → Workers AI 创建变量名为 `AI` 的 Binding；添加后重新部署。Pages 免费版限制单次构建最多 20 分钟、单站最多 20,000 个静态文件，所以默认不采用原版的全量素材构建方式。
+保存后，Cloudflare 自动拉取仓库、读取图库**文本元数据**、生成 `dist/` 并部署静态页面与 Pages Functions。脚本不会在 Cloudflare 中批量下载图库原图，也不会执行 `pip install pillow`。原图库图片通过 `/media/*` 路由按需请求原站。
 
-> 原素材站声明禁止自动批量下载图片和重新分发。此模式保留直接从原站按需展示的依赖关系，并注明来源；若原作者限制热链、访问或许可，相关素材功能可能不可用。公开上线前应遵守原作者的使用条款、必要时取得授权。整个站点只使用 Cloudflare Workers AI 生成，不需要第三方生图 API Key。
+### 2. Cloudflare Workers AI 模型
 
-## Fork：只使用 Cloudflare 免费 Workers AI
+部署完成后进入 **Pages 项目 → Settings → Bindings → Add binding → Workers AI**，绑定变量名必须严格为：
 
-本 Fork 保留原版图库、深度姿势、服装、动画服装、人像、试穿/无照片生成、多姿势、批量生成、对比、历史、收藏、PWA 等功能；生成端固定为 `@cf/black-forest-labs/flux-2-klein-4b`，不要求 OpenAI、Gemini、豆包或中转服务的 API Key。
-
-1. 按上方“快速开始”运行 `python3 scripts/fetch-assets.py`，下载原版所需的素材。
-2. 运行 `pip install pillow && npm install`，然后设置 `POSEWEAR_SITE=https://你的项目.pages.dev` 并运行 `python3 build.py`。
-3. 在 Cloudflare **Workers & Pages → 你的 Pages 项目 → Settings → Bindings → Add → Workers AI** 中，创建名称为 **`AI`** 的 Binding；生产环境与预览环境分别配置。
-4. 从本仓库根目录运行 `npx wrangler pages deploy dist --project-name 你的项目`。Binding 添加或变更后请重新部署。
-5. 在网页“试穿 → 设置 → 测试连接”检查 Binding；正式生成一次以验证模型权限及输出。
-
-本地若需要调试 Pages Function，请用 `npx wrangler pages dev dist --ai AI`；普通 `python -m http.server` 只能查看静态图库，无法运行 AI 接口。
-
-**模型限制：** FLUX.2 Klein 4B 单次最多接收 4 张参考图，单张需小于 512×512。本站自动缩放；超出 4 张时拼接剩余参考图供模型参考。多选/批量功能仍保留，但复杂动作、服装细节与人脸一致性不能保证与原版第三方模型一致。Workers Free 每天共享 10,000 Neurons，超限后会报错，不会继续生成。公开网站务必对 `/api/generate` 配置 Cloudflare WAF 速率限制，避免被别人耗尽免费额度。
-
-## 部署
-
-仓库不带素材，所以需要先在本地构建，再上传 `dist/` 到 Cloudflare Pages：
-
-```bash
-npm install
-npx wrangler login
-POSEWEAR_SITE=https://<你的项目名>.pages.dev python3 build.py
-npx wrangler pages deploy dist --project-name <你的项目名>
+```text
+AI
 ```
 
-- 第一次运行时，wrangler 会提示创建项目；之后同一条命令就是更新。
-- `functions/api/proxy.js` 会作为 Pages Function 一起部署，只用于转发 API 请求。建议在 Cloudflare 控制台给 `/api/proxy` 加一条限流规则。
-- CSP 等响应头由 `post.py` 生成在 `dist/_headers` 里。
+绑定类型必须是 **Workers AI**，不是 Text/Secret 环境变量，也不是 API Token。已经在**同一个 Pages 项目、同一个环境**正确绑定 `AI` 的用户不需要重复配置。若新建了 Pages 项目，旧 Workers 项目上的绑定不会自动迁移；生产环境与预览环境可能要分别配置。绑定保存后**触发新的 Pages 部署**。
+
+模型已经写在 `functions/api/generate.js`，不需要在控制台填写模型 ID：
+
+```text
+@cf/black-forest-labs/flux-2-klein-4b
+```
+
+### 3. 验证部署
+
+部署成功后在手机打开：
+
+```text
+https://<你的-pages-项目名>.pages.dev/api/generate
+```
+
+正常识别绑定时会得到类似响应：
+
+```json
+{"ok":true,"model":"@cf/black-forest-labs/flux-2-klein-4b"}
+```
+
+**这是 Binding 检测，不代表模型已经成功生图。** 还需打开网站「试穿 → 设置 → 测试连接」，然后实际生成一张合规的普通穿搭图片测试模型调用。若接口返回 `ok:false`、404 或 503，检查 Pages Functions 是否部署、`AI` Binding 是否在正确的 Pages 环境中、绑定后是否重新部署。
+
+### 常见部署报错
+
+| 报错 / 现象 | 可能原因 | 应采取的操作 |
+| --- | --- | --- |
+| `Your Wrangler configuration is missing a previews block` | 当前 Cloudflare 项目在执行 **Workers Builds** 的 `wrangler preview`，不是 Pages Git 自动部署 | 回到 Workers & Pages，创建**Pages → Connect to Git** 项目；本项目不要使用 `npx wrangler preview` |
+| **Preview command** 无法留空、页面不能保存 | 多半正在编辑 **Workers Builds** 设置 | **不必强行清空**，也不要填假命令；在 Pages 项目中配置 Git 构建 |
+| `ModuleNotFoundError: No module named 'PIL'` | 跑了原版的全量构建，或使用了旧提交 | 确认分支 `feature/cloudflare-free-ai`，Build command 是 `bash scripts/cloudflare-build.sh`，并触发最新提交的新构建 |
+| `/api/generate` 返回 404 | 部署到 Workers 或 Pages Function 未部署成功 | 确认是 Pages 项目、包含 `functions/api/generate.js`，检查构建日志 |
+| `/api/generate` 返回 503 | Workers AI Binding `AI` 缺失或未生效 | 在当前 **Pages 项目和环境**绑定 `AI`，保存后重新部署 |
+| 网页能打开、图片无法加载 | 原素材站不可访问、禁止热链或路由失败 | 核对原站与浏览器网络情况；不要通过批量抓取绕过原站限制 |
+| 模型生成返回 429 | 免费额度耗尽、请求过快或接口限流 | 等待额度恢复、减少生成并发，并对公开接口设置限流 |
+
+#### 如果已经建了 Workers 项目
+
+不需要删除旧项目。为避免重写后端，**另外创建一个 Pages 项目**并连接同一个 GitHub 仓库；在新的 Pages 项目重新绑定 `AI`。Cloudflare Workers Builds 的 Preview command 与 Pages 的**分支预览部署**是两回事。Cloudflare 官方确实要求直接运行 `wrangler preview` 的 Worker 配置包含 `previews` 块，但给本仓库添加 `previews: {}` **不能**自动将 Pages Functions 改造成原生 Worker。若今后要沿用 `*.workers.dev` 和 Workers Builds，需要另行迁移静态资产配置、Worker 入口以及全部 API 路由，而不是只改一条命令。
+
+参考官方文档：[Pages Git 集成](https://developers.cloudflare.com/pages/get-started/git-integration/) · [Pages AI Binding](https://developers.cloudflare.com/pages/functions/bindings/) · [Workers Preview 配置](https://developers.cloudflare.com/workers/previews/configuration/) · [从 Pages 迁移到 Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/)
+
+## 模型能力与免费额度
+
+生成端仅使用 Cloudflare Workers AI。FLUX.2 Klein 4B 接收的参考图最多为 4 张，单张需要缩小到 512×512 以下；本 Fork 会缩放图像，并将第 4 张以后的参考素材拼版送入模型。原工作台仍保留多选、批量生成、前后对比与下载界面，但复杂姿势、细节、人物面部一致性无法保证与其他模型相同。
+
+Cloudflare Workers AI 免费套餐提供按账户共享的日度 Neurons 额度（目前为每天 10,000 Neurons）；可能因其他站点的调用而消耗。额度不足时不会继续免费生成。公开网站请对 `/api/generate` 添加 Cloudflare WAF 限流，代码里的内存限流不等于全局安全防护。
+
+> 版权与素材：原图片不打包进这个 Fork。原站可能限制外链、复制、重分发和自动访问，请尊重原站条款。Cloudflare 构建阶段仅请求元数据；用户使用图库或图片生成功能仍依赖源站的可用性与授权。
+
+## 可选：本地构建（有电脑时）
+
+手机部署**不需要**以下命令。如果将来在电脑上开发，可以使用 Fork 仓库，按需求选择元数据模式或原版全量构建。
+
+```bash
+git clone -b feature/cloudflare-free-ai https://github.com/umud66/posewear.git
+cd posewear
+# 轻量构建：只获取文本元数据，不需要 Pillow
+bash scripts/cloudflare-build.sh
+```
+
+原始完整素材构建须另外准备 Pillow 和所有素材，并注意素材源站许可；不建议在 Cloudflare 的 Git 构建里做全量抓取。
 
 ## 测试
 
-测试用 Playwright 拦截各服务商的接口，模拟成功、密钥错误、限流、5xx、超时、取消、安全拦截、多张输出等情况，不需要真实的 Key。
+上游 Playwright 用例主要覆盖原版多服务商生成流程，尚不能替代当前 Cloudflare AI Binding 的真实环境测试。部署后的验收应包括：图库显示、原图/参考图加载、`/api/generate` Binding 检测及至少一次真实生图。
 
 ```bash
 npm install && npx playwright install chromium
@@ -159,17 +187,20 @@ U=https://posewear.pages.dev node tests/v12.js   # 直接测线上
 ```
 src/                    前端源码，无框架
   app.js                图库、搜索筛选、收藏最近、灯箱、路由
-  studio.js             试穿工作台：服务商适配、进度、结果、历史、减少误拦截
+  studio.js             试穿工作台：Cloudflare 模型接入、进度、结果、历史和提示词
   extras.js             批量操作、导入导出
   style.css             样式（含深色模式）
   sw.js / zip.js        离线缓存 / 打包下载
-functions/api/proxy.js  Pages Function，转发 API 请求
-build.py / post.py      生成缩略图、数据、详情页、sitemap、_headers
+functions/api/generate.js  Pages Function，Cloudflare Workers AI 图像生成
+functions/media/[[path]].js Pages Function，按需读取原站图库图片
+functions/api/proxy.js  上游保留的原第三方服务商代理（本 Fork 生成不依赖）
+build.py / post.py      轻量模式生成图库元数据、详情页、sitemap、_headers
 costume_text.py         服装中英文描述
 words.txt, tr_*.txt     词表与中英文翻译
 depth/                  深度姿势素材包（只有文本，图片热链原站）
 depthpack.py            把素材包编成可替换的 depths.json
-scripts/                fetch-assets.py 下载素材，make-icons.js 生成图标
+scripts/cloudflare-build.sh   Cloudflare Pages Git 自动构建入口
+scripts/fetch-assets.py  云端只读取元数据；全量模式可能下载素材
 tests/                  Playwright 测试
 docs/                   README 用图
 ```
@@ -177,37 +208,43 @@ docs/                   README 用图
 ## 常见问题
 
 <details>
-<summary><b>API Key 安全吗？</b></summary>
+<summary><b>还要在网页中填写 API Key 吗？</b></summary>
 
-Key 只存在你浏览器的 localStorage 里，可在设置里清除。默认由浏览器直接请求服务商的官方接口。只有两种情况会经过本站的 `/api/proxy`：开启了「通过本站代理转发」，或使用自定义中转。这时它只按原样转发，不记录、不保存密钥和图片，并拒绝转发到内网地址。在公共电脑上用完记得清除。如果不放心，可以自己部署一份。
+不需要。本 Fork 通过部署者的 Cloudflare Workers AI Binding `AI` 访问 `env.AI.run()`。访问者无需输入密钥，模型额度由**你的 Cloudflare 账号**承担；请保护公开生成接口，避免额度被滥用。
 </details>
 
 <details>
-<summary><b>为什么会被「安全审核」拦下？</b></summary>
+<summary><b>为什么遇到 `previews`、`wrangler preview` 报错？</b></summary>
 
-各家服务商都会审核输入的照片和生成的结果。真人照片配上泳装、内衣、露背等比较暴露的服装，最容易被拦，OpenAI 最严，Gemini 和 Seedream 相对宽松。「减少误拦截」可以降低正常穿搭被误判的概率，但不会、也不应该绕过对违规内容的审核。被拦时可以换一家服务商，或换一套服装。
+你大概率创建成了 Workers Builds 项目。本仓库当前是 Pages Functions 项目，应新建 **Cloudflare Pages → Connect to Git**，并按[手机部署](#手机部署cloudflare-pages)填写构建设置。Workers Preview 的 `previews` 配置不能修复 Pages Functions 与 Workers 入口不兼容的问题。
+</details>
+
+<details>
+<summary><b>为什么会被模型安全审核拦下？</b></summary>
+
+Cloudflare Workers AI 对输入与生成结果可能进行安全审核。请使用合规素材和正常穿搭描述；不要通过修改提示词绕过平台安全限制。工作台的“减少误拦截”只用于使正常描述更中性。
 </details>
 
 <details>
 <summary><b>素材可以商用吗？</b></summary>
 
-本仓库不包含任何图片，素材版权归原作者所有，请以各原站的说明为准。人像库作者声明为 CC0。本仓库的 MIT 许可只覆盖代码和文案。
+代码采用 MIT，**不包含图片的商用授权**；姿势、服装及深度姿势图片由各原作者拥有，具体用途必须遵守原站条款并在必要时取得授权。人像库作者声明为 CC0。
 </details>
 
 <details>
 <summary><b>生成要多久、花多少钱？</b></summary>
 
-通常每张半分钟左右，费用按你所用服务商的价格从你的账户扣除，本站不收费。
+实际耗时随模型负载、图片大小和参考图数量变化。Cloudflare 免费额度按账户每日 Neurons 计量，不等于无限免费；耗尽后请求会失败。具体可用额度、限制以 Cloudflare 控制台与官方计费文档为准。
 </details>
 
 ## 路线图
 
-- [ ] 更多服务商与模型预设
+- [ ] 增强 Cloudflare 免费模型图像一致性和生图测试
 - [ ] 生成记录导出
 - [ ] 增量更新素材（只下载新增内容）
 - [ ] 更完整的英文界面文案
 
-欢迎在 [Issues](https://github.com/atuizz/posewear/issues) 里提建议。
+此 Fork 的问题请提交到 [umud66/posewear Issues](https://github.com/umud66/posewear/issues)；原项目见 [atuizz/posewear](https://github.com/atuizz/posewear)。
 
 ## 参与贡献
 
@@ -233,8 +270,8 @@ Key 只存在你浏览器的 localStorage 里，可在设置里清除。默认�
 | 内容 | 是否在本仓库 | 许可 |
 |---|---|---|
 | 代码、页面文案、构建脚本 | 是 | [MIT](LICENSE) |
-| 姿势、服装图片和原始数据 | 否，由 `fetch-assets.py` 从原站下载 | 归原作者 [@giaaibusi](https://x.com/giaaibusi) 所有（[AI Pose Gallery](https://ai-pose-gallery.pages.dev/) / [AI Costume Gallery](https://ai-costume-gallery.pages.dev/) / [AI Costume Anime Gallery](https://ai-costume-anime-gallery.pages.dev/)），原站未标明开放许可 |
-| 人像图片 | 否，同上 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans)，作者 [@agi_aibusi](https://x.com/agi_aibusi)（[AI Portrait Gallery](https://ai-portrait-gallery.pages.dev/)） |
+| 姿势、服装图片和原始数据 | 否；云端构建读取元数据，图片按需访问原站 | 归原作者 [@giaaibusi](https://x.com/giaaibusi) 所有（[AI Pose Gallery](https://ai-pose-gallery.pages.dev/) / [AI Costume Gallery](https://ai-costume-gallery.pages.dev/) / [AI Costume Anime Gallery](https://ai-costume-anime-gallery.pages.dev/)），原站未标明开放许可 |
+| 人像图片 | 否，按需访问原站 | [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/deed.zh-hans)，作者 [@agi_aibusi](https://x.com/agi_aibusi)（[AI Portrait Gallery](https://ai-portrait-gallery.pages.dev/)） |
 | 深度姿势图片 | 否，页面 `<img>` 热链 [AI Pose Depth Gallery](https://ai-pose-depth-gallery.pages.dev/) | 归作者 [ギア / @giaaibusi](https://x.com/giaaibusi)。本仓库只有文本元数据和译名 |
 | 深度姿势文本元数据 | 是，`depth/packs/` | 日文原文归原作者，中文译名为本站 |
 | README 截图 | 是 | 截图里的图片素材同上，归各自作者 |
