@@ -8,7 +8,7 @@ python3 scripts/fetch-assets.py --meta-only
 export POSEWEAR_SITE="${POSEWEAR_SITE:-${CF_PAGES_URL:-https://posewear.pages.dev}}"
 python3 build.py
 
-# Only dynamic AI/media endpoints invoke Pages Functions; static pages stay free to serve.
+# Only user-triggered /api endpoints invoke Pages Functions; gallery images load from their original hosts.
 cat > dist/_routes.json <<'EOF'
 {"version":1,"include":["/api/*"],"exclude":[]}
 EOF
