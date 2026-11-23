@@ -34,17 +34,39 @@ const libSrc=a=>{const it=A.ITEMS[a.k];return it.type=='pose'?it.angles[a.ai??it
 // 只在用户主动选择素材进入生成时才读取原图，禁止全量抓取。
 const ASSET_ROOTS={'ai-pose-gallery.pages.dev':'pose','ai-costume-gallery.pages.dev':'costume','ai-costume-anime-gallery.pages.dev':'anime','ai-portrait-gallery.pages.dev':'portrait'};
 async function fetchRef(src){
- let url;
- if(/^\/?media\//.test(src)){url='/'+src.replace(/^\//,'')+'?fetch=1'}
+ let url=src;
+ if(/^\/?media\//.test(src))url='/'+src.replace(/^\//,'')+'?fetch=1';
  else{
   const u=new URL(src,location.href),lib=ASSET_ROOTS[u.hostname];
   if(lib&&u.protocol==='https:')url='/api/asset?lib='+encodeURIComponent(lib)+'&path='+encodeURIComponent(u.pathname.slice(1));
-  else url=src;
  }
- const r=await fetch(url);if(!r.ok)throw Error('素材下载失败（'+r.status+'）');
+ let r;
+ try{r=await fetch(url,{cache:'no-store'})}catch(e){throw Error('无法连接图片读取接口：'+(e.message||'网络连接失败'))}
+ if(!r.ok){
+  const ct=r.headers.get('content-type')||'';
+  const j=ct.includes('json')?await r.json().catch(()=>null):null;
+  const detail=String(j?.error?.message||j?.message||'').slice(0,130);
+  if(r.status===404&&!j&&url.startsWith('/api/'))throw Error('图片读取接口 /api/asset 返回 404：当前部署可能只有静态网页，没有部署 API 路由。请检查 Pages/Workers 部署命令。');
+  throw Error('素材读取失败 HTTP '+r.status+(detail?'：'+detail:''));
+ }
+ const ct=r.headers.get('content-type')||'';
+ if(ct&&!ct.startsWith('image/'))throw Error('图片读取接口未返回图片（'+ct+'），请检查 /api/asset 路由');
  return r.blob();
 }
-async function assetBlob(a){if(a.kind=='file')return a.blob;const src=libSrc(a);const u=URL.createObjectURL(await fetchRef(src));try{return(await toJpeg(u,1280)).blob}finally{URL.revokeObjectURL(u)}}
+async function assetBlob(a){
+ if(a.kind==='file')return a.blob;
+ const it=A.ITEMS[a.k],primary=libSrc(a);
+ const fallback=it.type==='pose'?it.angles[a.ai??it.ai].t:(it.m!==primary?it.m:it.t);
+ let blob;
+ try{blob=await fetchRef(primary)}
+ catch(e){
+  if(!fallback||fallback===primary)throw e;
+  try{blob=await fetchRef(fallback);toast('原图暂不可用，已改用缩略图作为参考')}
+  catch(x){throw Error('素材加载失败：'+e.message+'；缩略图重试：'+x.message)}
+ }
+ const u=URL.createObjectURL(blob);
+ try{return(await toJpeg(u,1280)).blob}finally{URL.revokeObjectURL(u)}
+}
 const b64=b=>new Promise(r=>{const f=new FileReader();f.onload=()=>r(f.result.split(',')[1]);f.readAsDataURL(b)});
 const dataURL=async b=>'data:'+(b.type||'image/jpeg')+';base64,'+await b64(b);
 const isGen=()=>W.mode=='gen';const hasPerson=()=>W.persons.length>0;
@@ -91,7 +113,22 @@ function render(){const G=isGen();$$('[data-mode]').forEach(b=>b.classList.toggl
  SV('wbSel',{g:W.garments.filter(g=>g.kind=='lib').map(g=>g.k),p:W.poses.filter(p=>p.kind=='lib').map(p=>[p.k,p.ai])});reprompt()}
 const nJobs=()=>(W.poses.length>1&&W.bm=='each'?W.poses.length:1)*(+$('#wbN').value||1);
 // ---------- 上传 ----------
-async function addPortrait(it){if(W.persons.length>=3)return toast('最多 3 张人物照片');try{const u=URL.createObjectURL(await fetchRef(it.m));let x;try{x=await toJpeg(u,1536)}finally{URL.revokeObjectURL(u)}W.persons.push({blob:x.blob,url:URL.createObjectURL(x.blob),w:x.w,h:x.h,k:it.k});render();toast(W.mode=='gen'?'已设为脸部参考（生成时保持这张脸）':'已设为人物照片')}catch(e){toast('人像加载失败')}}
+async function addPortrait(it){
+ if(W.persons.length>=3)return toast('最多 3 张人物照片');
+ try{
+  let blob;
+  try{blob=await fetchRef(it.m||it.i)}
+  catch(e){
+   if(!it.t||it.t===it.m)throw e;
+   try{blob=await fetchRef(it.t);toast('人像原图不可用，已改用缩略图')}
+   catch(x){throw Error(e.message+'；缩略图重试：'+x.message)}
+  }
+  const u=URL.createObjectURL(blob);let x;
+  try{x=await toJpeg(u,1536)}finally{URL.revokeObjectURL(u)}
+  W.persons.push({blob:x.blob,url:URL.createObjectURL(x.blob),w:x.w,h:x.h,k:it.k});
+  render();toast(W.mode=='gen'?'已设为脸部参考（生成时保持这张脸）':'已设为人物照片');
+ }catch(e){toast('人像加载失败：'+String(e.message||e).slice(0,230))}
+}
 async function addPersons(files){files=[...files].filter(f=>/^image\//.test(f.type));if(!files.length)return toast('请选择图片文件');for(const f of files){if(W.persons.length>=3){toast('最多 3 张人物照片');break}const u=URL.createObjectURL(f);try{const r=await toJpeg(u,1536);W.persons.push({blob:r.blob,url:URL.createObjectURL(r.blob),w:r.w,h:r.h})}catch(e){toast('无法读取这张图片')}finally{URL.revokeObjectURL(u)}}render()}
 const drop=$('#wbDrop');$('#wbFile').onchange=e=>{addPersons(e.target.files);e.target.value=''};
 ['dragenter','dragover'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.add('over')}));['dragleave','drop'].forEach(t=>drop.addEventListener(t,e=>{e.preventDefault();drop.classList.remove('over')}));
