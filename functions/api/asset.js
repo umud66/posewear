@@ -23,8 +23,10 @@ function sameOrigin(req){
  return req.headers.get('sec-fetch-site')!=='cross-site';
 }
 export async function onRequestGet({request}){
- if(!sameOrigin(request))return err(403,'仅允许本站主动选择素材时读取原图');
  const u=new URL(request.url),lib=u.searchParams.get('lib'),path=u.searchParams.get('path');
+ // Simple route check for Pages and Workers builds, without requesting upstream images.
+ if(!lib&&!path)return Response.json({ok:true,service:'asset',mode:'on-demand',tip:'图库显示使用原站直链；此接口仅在选择/下载时读取图片'},{headers:{'cache-control':'no-store'}});
+ if(!sameOrigin(request))return err(403,'仅允许本站主动选择素材时读取原图');
  if(!Object.hasOwn(ORIGINS,lib||''))return err(400,'不支持的素材库');
  if(!path||path.length>350||path.startsWith('/')||path.includes('\\')||/\.{2}/.test(path)||
    path.split('/').some(part=>!part||part==='.'||part==='..')||
@@ -34,8 +36,8 @@ export async function onRequestGet({request}){
  const url=new URL(path,ORIGINS[lib]);
  if(url.origin!==new URL(ORIGINS[lib]).origin)return err(400,'素材来源不允许');
  try{
-  const r=await fetch(url.toString(),{redirect:'manual'});
-  if(!r.ok)return err(r.status>=500?502:404,'无法从原素材站读取图片');
+  const r=await fetch(url.toString(),{redirect:'follow'});
+  if(!r.ok)return err(r.status===404?404:r.status>=500?502:424,'原素材站图片请求失败（源站 HTTP '+r.status+'）');
   const contentType=r.headers.get('content-type')||'';
   if(!/^image\//i.test(contentType))return err(502,'上游没有返回图片');
   const length=Number(r.headers.get('content-length')||0);
