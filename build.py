@@ -2,9 +2,36 @@ import json,os,shutil,subprocess,depthpack
 from costume_text import gen2
 import hashlib,re,html as H
 from concurrent.futures import ProcessPoolExecutor
-from PIL import Image
+# Cloudflare Git 自动构建时使用元数据+原站按需图片，不批量下载源图片。
+# Cloudflare Pages builds need no Pillow and never download whole image galleries.
+# CF_PAGES_BRANCH is provided by the Cloudflare Pages Git build environment.
+REMOTE=os.environ.get('POSEWEAR_REMOTE_ASSETS','1' if os.environ.get('CF_PAGES_BRANCH') else '0')=='1'
+if REMOTE:
+    import sys
+    required=[
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/pose/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/costume/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/anime/data.json',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/portrait/images.js',
+        f'{os.environ.get("POSEWEAR_RAW","assets-raw")}/portrait/ranking.js',
+    ]
+    if any(not os.path.isfile(path) for path in required):
+        subprocess.check_call([sys.executable,'scripts/fetch-assets.py','--meta-only'])
+else:
+    from PIL import Image
 # 素材目录：默认 ./assets-raw，可用环境变量 POSEWEAR_RAW 指定（见 scripts/fetch-assets.py）
 R=os.environ.get('POSEWEAR_RAW','assets-raw'); D='dist'
+def remote(lib,path):
+    # 云构建只引用上游原图链接，不通过本站 /media 路由展示图片。
+    # 生成/下载时的按需跨域读取交由 /api/asset 处理。
+    roots={'pose':'https://ai-pose-gallery.pages.dev/',
+           'costume':'https://ai-costume-gallery.pages.dev/',
+           'anime':'https://ai-costume-anime-gallery.pages.dev/',
+           'portrait':'https://ai-portrait-gallery.pages.dev/'}
+    if lib not in roots or not isinstance(path,str) or not path or path.startswith(('http:','https:','/')):
+        raise ValueError('invalid remote source path: %r'%path)
+    return roots[lib]+path
+
 LINE={'全身1人・セクシー系':('全身·性感','full body, solo, sexy'),'全身1人・標準系':('全身·标准','full body, solo'),'上半身1人':('上半身','upper body, solo'),'2人絡み':('双人互动','two people, couple')}
 CAT={'寝そべり':'躺卧','セクシー・露骨寄り系':'性感·大胆','立ち':'站姿','座り':'坐姿','かわいい系':'可爱','胸寄せ・谷間強調系':'挤胸·乳沟','膝立ち・四つん這い':'跪立·趴姿','特殊':'特殊','正常位':'正面位','膝立ち':'跪立','横座り・女の子座り':'侧坐·鸭子坐','後背位':'后入位','背面座位':'背面坐位','しゃがみ':'蹲姿','前かがみ':'前倾','顔寄せ系':'贴脸','騎乗位':'骑乘位','立位':'立位','立位密着':'立位贴身','のけぞり・反り':'后仰','ひねり':'扭身','側位':'侧位','座位':'坐位','対面座位':'对面坐位','座位密着':'坐位贴身','密着':'贴身'}
 ANG={'正面':('正面','front view'),'上から':('俯拍','high angle, from above'),'下から':('仰拍','low angle, from below'),'横':('侧面','side view'),'斜め':('斜侧','three-quarter view')}
@@ -16,9 +43,9 @@ poses={}
 for d in pd:
   k=d['id'].rsplit('_',1)[0]; zh,en=TR[d['ポーズ名']]
   p=poses.setdefault(k,{'id':k,'no':d['ポーズ番号'],'line':LINE[d['系統']][0],'cat':CAT[d['分類']],'ja':d['ポーズ名'],'zh':zh,'en':en,'lineEn':LINE[d['系統']][1],'angles':[]})
-  a=ANG[d['アングル']]; p['angles'].append({'zh':a[0],'en':a[1],'t':'p/t/'+d['id']+'.webp','i':'p/i/'+d['id']+'.webp','o':'o/p/'+d['id']+'.png','_src':d})
-cos=[{'id':d['id'],'cat':CC[d['カテゴリ']][0],'catEn':CC[d['カテゴリ']][1],'kw':d['キーワード'],**dict(zip(('zh','en','ti'),gen2(d['キーワード'],CC[d['カテゴリ']][1],d['id']))),'t':'c/t/'+os.path.basename(d['サムネ']),'m':'c/m/'+d['id']+'.webp','i':'c/i/'+os.path.basename(d['画像']),'o':'o/c/'+d['id']+'.png','_src':d} for d in cd]
-acs=[{'id':d['id'],'cat':CC[d['カテゴリ']][0],'catEn':CC[d['カテゴリ']][1],'kw':d['キーワード'],**dict(zip(('zh','en','ti'),gen2(d['キーワード'],CC[d['カテゴリ']][1],d['id']))),'t':'a/t/'+os.path.basename(d['サムネ']),'m':'a/m/'+d['id']+'.webp','i':'a/i/'+os.path.basename(d['画像']),'o':'o/a/'+d['id']+'.png','_src':d} for d in ad]
+  a=ANG[d['アングル']]; p['angles'].append({'zh':a[0],'en':a[1],'t':remote('pose',d['サムネ']) if REMOTE else 'p/t/'+d['id']+'.webp','i':remote('pose',d['原寸']) if REMOTE else 'p/i/'+d['id']+'.webp','o':remote('pose',d['原寸']) if REMOTE else 'o/p/'+d['id']+'.png','_src':d})
+cos=[{'id':d['id'],'cat':CC[d['カテゴリ']][0],'catEn':CC[d['カテゴリ']][1],'kw':d['キーワード'],**dict(zip(('zh','en','ti'),gen2(d['キーワード'],CC[d['カテゴリ']][1],d['id']))),'t':remote('costume',d['サムネ']) if REMOTE else 'c/t/'+os.path.basename(d['サムネ']),'m':remote('costume',d['画像']) if REMOTE else 'c/m/'+d['id']+'.webp','i':remote('costume',d['画像']) if REMOTE else 'c/i/'+os.path.basename(d['画像']),'o':remote('costume',d['原寸']) if REMOTE else 'o/c/'+d['id']+'.png','_src':d} for d in cd]
+acs=[{'id':d['id'],'cat':CC[d['カテゴリ']][0],'catEn':CC[d['カテゴリ']][1],'kw':d['キーワード'],**dict(zip(('zh','en','ti'),gen2(d['キーワード'],CC[d['カテゴリ']][1],d['id']))),'t':remote('anime',d['サムネ']) if REMOTE else 'a/t/'+os.path.basename(d['サムネ']),'m':remote('anime',d['画像']) if REMOTE else 'a/m/'+d['id']+'.webp','i':remote('anime',d['画像']) if REMOTE else 'a/i/'+os.path.basename(d['画像']),'o':remote('anime',d['原寸']) if REMOTE else 'o/a/'+d['id']+'.png','_src':d} for d in ad]
 # 双人 分类人工复核（看图）
 FIX={'pair60_P031':'坐位','pair60_P053':'立位贴身','pair60_P055':'侧位','pair60_P058':'贴脸'}
 for k,v in FIX.items(): poses[k]['cat']=v
@@ -58,14 +85,15 @@ for d in rd:
   seq[d['section']]=seq.get(d['section'],0)+1;no=('F' if d['section']=='face' else 'S')+str(seq[d['section']]).zfill(3)
   zh=f"一位亚洲年轻女性，{ln[0]}{'，'+sz if sz else ''}，{'正面半身肖像，浅灰纯色背景，柔和均匀的光线' if d['section']=='face' else '自拍风生活照，室内自然光'}。作为人物面部参考，保持五官和脸型一致。"
   en=f"young Asian woman, {ln[1]}{', '+se if se else ''}, {sec[1]}, consistent facial features, face reference"
-  it={'id':d['id'],'no':no,'sec':sec[0],'len':ln[0],'st':sz,'ti':sz or f"{ln[0]} · {sec[0]}",'zh':zh,'en':en,'ja':d['style'] or d['hair'],'t':'r/t/'+d['id']+'.webp','m':'r/m/'+d['id']+'.webp','i':'r/m/'+d['id']+'.webp','o':'o/r/'+d['id']+'.png','w':d['w'],'h':d['h']}
+  it={'id':d['id'],'no':no,'sec':sec[0],'len':ln[0],'st':sz,'ti':sz or f"{ln[0]} · {sec[0]}",'zh':zh,'en':en,'ja':d['style'] or d['hair'],'t':remote('portrait',d['thumb']) if REMOTE else 'r/t/'+d['id']+'.webp','m':remote('portrait',d['full']) if REMOTE else 'r/m/'+d['id']+'.webp','i':remote('portrait',d['full']) if REMOTE else 'r/m/'+d['id']+'.webp','o':remote('portrait',d['full']) if REMOTE else 'o/r/'+d['id']+'.png','w':d['w'],'h':d['h']}
   if d['id'] in RANK: it['rk']=RANK[d['id']]
   if d['id'] in RANKC: it['rc']=RANKC[d['id']]
   pors.append(it)
 RJ=J(pors)
 if os.path.exists(f'{D}/data.js'): os.remove(f'{D}/data.js')
-for a,b in [('costume/thumbs','c/t'),('costume/img','c/i'),('anime/thumbs','a/t'),('anime/img','a/i')]:
-  shutil.copytree(f'{R}/{a}',f'{D}/{b}',dirs_exist_ok=True)
+if not REMOTE:
+  for a,b in [('costume/thumbs','c/t'),('costume/img','c/i'),('anime/thumbs','a/t'),('anime/img','a/i')]:
+    shutil.copytree(f'{R}/{a}',f'{D}/{b}',dirs_exist_ok=True)
 os.makedirs(f'{D}/p/i',exist_ok=True)
 def cv(d):
   t=f"{D}/p/t/{d['id']}.webp"
@@ -101,10 +129,26 @@ for x in ['p/t','c/m','o/p','o/c','a/m','o/a','r/t','r/m','o/r']: os.makedirs(f'
 if os.path.exists(f'{D}/p/t'):
   for f in os.listdir(f'{D}/p/t'):
     if f.endswith('.jpg'): os.remove(f'{D}/p/t/{f}')
-with ProcessPoolExecutor() as ex: list(ex.map(cv,pd)); list(ex.map(cm,cd)); list(ex.map(ca,ad)); list(ex.map(cr,rd))
+if not REMOTE:
+  with ProcessPoolExecutor() as ex: list(ex.map(cv,pd)); list(ex.map(cm,cd)); list(ex.map(ca,ad)); list(ex.map(cr,rd))
 # 深度姿势：只解析素材包里的文本，热链包不复制图片（见 depthpack.py）
 _dc=depthpack.catalog(); DJ=J(_dc['payload']); DEPTH_ORIGINS=_dc['origins']
 for src,rel in _dc['copies']:
   dest=f'{D}/{rel}'; os.makedirs(os.path.dirname(dest),exist_ok=True); shutil.copyfile(src,dest)
 exec(open('post.py').read())
+if REMOTE:
+  # 静态详情页和 sitemap 的上游图像可能被模板加上本域名或前导 /
+  # （原版模板面向自托管图片），统一恢复完整上游 URL。
+  from pathlib import Path
+  for f in Path(D).rglob('*'):
+    if f.suffix not in ('.html','.xml') or not f.is_file():
+      continue
+    txt=f.read_text(encoding='utf-8')
+    for root in ('https://ai-pose-gallery.pages.dev/','https://ai-costume-gallery.pages.dev/',
+                 'https://ai-costume-anime-gallery.pages.dev/','https://ai-portrait-gallery.pages.dev/'):
+      txt=txt.replace('="/'+root,'="'+root)
+      txt=txt.replace(SITE+'/'+root,root)
+    if f.suffix=='.html' and '<head>' in txt and 'name="referrer"' not in txt:
+      txt=txt.replace('<head>','<head><meta name="referrer" content="no-referrer">',1)
+    f.write_text(txt,encoding='utf-8')
 print(len(poses),len(cos),len(acs),len(_dc['payload']['items']))

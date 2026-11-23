@@ -1,4 +1,4 @@
-<!doctype html><html lang="zh-CN" data-theme="light"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<!doctype html><html lang="zh-CN" data-theme="light"><head><meta charset="utf-8"><meta name="referrer" content="no-referrer"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>姿势库 · 衣姿 PoseWear</title>
 <meta name="description" content="288 个人体姿势（1439 张多角度图）、1407 套服装和 1320 套动画服装参考图，附中英文提示词，可上传照片试穿。">
 <meta name="keywords" content="绘画参考,姿势参考,服装参考,提示词,Stable Diffusion,Midjourney,姿势库,服装库">
@@ -33,7 +33,7 @@
 <div class="step" data-s="2"><div class="sh"><i>2</i><b>服装</b><small id="s2R">必选</small><span class="sp"></span><label class="lnk btn">上传图<input type="file" id="wbGFile" accept="image/*" multiple hidden></label><button class="lnk" data-pick="costume">从库中选</button><button class="lnk" data-pick="anime">从动画服装选</button></div><div class="slot" id="wbG"></div></div>
 <div class="step" data-s="3"><div class="sh"><i>3</i><b>姿势</b><small id="s3R">可选</small><span class="sp"></span><button class="lnk" data-pick="pose">从库中选</button></div><div class="slot" id="wbPo"></div><div class="row r3"><button class="sm ghost" id="wbAllAng" hidden>全部角度</button><span class="sp"></span><div class="seg sm" id="wbBatch" role="group" aria-label="多姿势出图方式" hidden><button data-bm="each">分开出</button><button data-bm="sheet">拼一张</button></div></div></div>
 </aside>
-<main class="st-c"><div class="onb" id="wbOnb" hidden><div class="onb-i"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9m-3 3 3 3m-6 0 2 2"/></svg></div><div><b>需要一个图像模型的 API Key</b><p>支持 OpenAI、Gemini、豆包或中转。Key 只存在你的浏览器里。</p></div><button class="pri sm" id="wbOnbGo">去设置</button></div>
+<main class="st-c"><div class="onb" id="wbOnb" hidden><div class="onb-i"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="15" r="4"/><path d="m11 12 9-9m-3 3 3 3m-6 0 2 2"/></svg></div><div><b>Cloudflare 免费图像生成</b><p>请在 Cloudflare Pages 添加 Workers AI Binding（AI），不需要任何 API Key。</p></div><button class="pri sm" id="wbOnbGo">去设置</button></div>
 <div class="stage" id="wbStage"><div class="ph0" id="wbPh0"><div class="ill"><i class="c1">人物</i><em>+</em><i class="c2">服装</i><em>→</em><i class="c3">结果</i></div><span>结果会显示在这里</span><p>选好人物和服装后点「生成」</p></div>
 <div class="cmp" id="wbCmp" hidden><img id="wbAfter" alt="生成结果"><div class="bef" id="wbBefW"><img id="wbBefore" alt="原始照片"></div><div class="hdl" id="wbHdl"><span></span></div><input type="range" id="wbRange" min="0" max="100" value="50" aria-label="前后对比"><em class="l">原图</em><em class="r">结果</em></div>
 <div class="busy" id="wbBusy" hidden><div class="skel0"></div><div class="bar0"><i id="wbProg"></i></div><b id="wbStage1">正在上传素材…</b><small id="wbTime">0 秒</small><button class="sm ghost" id="wbStop">取消</button></div>
@@ -56,14 +56,14 @@
 <div id="pk" hidden role="dialog" aria-modal="true" aria-label="选择素材"><div class="pk-box"><div class="pk-h"><b id="pkT">选择服装</b><input id="pkQ" type="search" placeholder="搜索…" autocomplete="off"><button class="sm pri" id="pkDone" hidden>完成</button><button class="icon" id="pkX" aria-label="关闭">✕</button></div><div class="pk-g" id="pkG"></div></div></div>
 <div id="cfg" hidden role="dialog" aria-modal="true" aria-labelledby="cfgT"><div class="cfg-box"><div class="pk-h"><b id="cfgT">API 设置</b><button class="icon" id="cfgX" aria-label="关闭">✕</button></div>
 <div class="cfg-b">
-<div class="grp">服务商</div><div class="prov" role="radiogroup" aria-label="服务商"><label><input type="radio" name="prov" value="openai"><span><i class="lg" style="background:#111">O</i><b>OpenAI</b><small>gpt-image-1 · edits</small></span></label><label><input type="radio" name="prov" value="gemini"><span><i class="lg" style="background:#4f7cff">G</i><b>Gemini</b><small>Nano Banana</small></span></label><label><input type="radio" name="prov" value="seedream"><span><i class="lg" style="background:#ff6a00">豆</i><b>豆包 Seedream</b><small>火山方舟 · 国内直连</small></span></label><label><input type="radio" name="prov" value="custom"><span><i class="lg" style="background:#7a7a7a">中</i><b>自定义中转</b><small>OpenAI 兼容</small></span></label></div>
+<div class="grp">图像生成模型</div><div class="prov" role="radiogroup" aria-label="服务商"><label><input type="radio" name="prov" value="cloudflare" checked><span><i class="lg" style="background:#f38020">CF</i><b>Cloudflare Workers AI</b><small>FLUX.2 Klein 4B · 免费额度</small></span></label></div>
 
 <p class="fine" id="cfHelp"></p><div class="grp">连接</div><label class="fld">Base URL<input id="cfBase" placeholder="https://api.openai.com" spellcheck="false"></label>
 <label class="fld">API Key<span class="kw"><input id="cfKey" type="password" placeholder="sk-…" autocomplete="off" spellcheck="false"><button class="sm ghost" id="cfEye" type="button">显示</button></span></label>
 <label class="fld">模型<input id="cfModel" list="cfModels" spellcheck="false"><datalist id="cfModels"></datalist></label>
 <div class="grp">高级</div><label class="fld" id="cfProtoW">接口协议<select id="cfProto"><option value="edits">images/edits · multipart（OpenAI 官方格式）</option><option value="json">images/generations · JSON 多图（多数中转 / gpt-image-2）</option></select></label><label class="fld" id="cfFieldW">图片字段名<select id="cfField"><option value="image[]">image[]（官方，多图）</option><option value="image">image（部分中转）</option></select></label>
 <label class="tg"><input type="checkbox" id="cfProxy"><span><b>通过本站代理转发</b><small>中转不支持跨域（CORS）时再打开。只转发，不保存。自定义中转总是经本站转发。</small></span></label>
-<div class="note"><b>密钥</b>只存在这个浏览器里，请求直接发给你填的地址。用公共电脑记得清除。</div>
+<div class="note">本站只调用同一 Cloudflare 账户绑定的 Workers AI 模型，不使用第三方 API 中转。免费额度由账户内所有 Workers AI 使用共享。</div>
 <p class="fine" id="cfMsg" aria-live="polite"></p>
 </div>
 <div class="cfg-f"><button class="ghost sm" id="cfClr">清除密钥</button><button class="ghost sm" id="cfExp">导出</button><button class="ghost sm" id="cfImp">导入</button><input type="file" id="cfImpF" accept=".json" hidden><span class="sp"></span><button class="sm" id="cfTest">测试连接</button><button class="pri sm" id="cfSave">保存</button></div></div></div>
